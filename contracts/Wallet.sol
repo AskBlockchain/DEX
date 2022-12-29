@@ -6,11 +6,17 @@ pragma solidity ^0.8.0;
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
 
-contract wallet {
+contract wallet is Ownable{
 
     using SafeMath for uint256;
-    using SafeERC20 for Token;
+    using SafeERC20 for IERC20;
+
+    modifier tokenExist(bytes32 ticker){
+        require(tokenMapping[ticker].tokenAddress != address(0));
+        _;
+    }
     
 
     struct Token{
@@ -25,24 +31,23 @@ contract wallet {
 
 
     
-    function addToken(bytes32 ticker, address tokenAddress) external {
+    function addToken(bytes32 ticker, address tokenAddress) external onlyOwner {
         tokenMapping[ticker] = Token(ticker, tokenAddress);
         tokenList.push(ticker);
     }
 
-    function deposit(uint amount, bytes32 ticker) external {
+    function deposit(uint amount, bytes32 ticker) external tokenExist(ticker) {
         // Require that the depositing address has sufficient balance.
-
-        balances[msg.sender][ticker].add(amount);
-        IERC20(tokenMapping[ticker].tokenAddress).transferFrom(msg.sender, address(this), amount); 
+        IERC20(tokenMapping[ticker].tokenAddress).safeTransferFrom(msg.sender, address(this), amount); 
+        balances[msg.sender][ticker] = balances[msg.sender][ticker].add(amount);        
     }
 
      function withdraw(uint amount, bytes32 ticker) external {
-        require(tokenMapping[ticker].tokenAddress != address(0));
+        
         require(balances[msg.sender][ticker] >= amount, "Insufficient Balance");
 
         balances[msg.sender][ticker] = balances[msg.sender][ticker].sub(amount);
-        IERC20(tokenMapping[ticker].tokenAddress).transfer(msg.sender, amount);
+        IERC20(tokenMapping[ticker].tokenAddress).safeTransfer(msg.sender, amount);
     }
 
     
