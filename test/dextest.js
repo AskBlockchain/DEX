@@ -4,6 +4,38 @@ const truffleAssert = require('truffle-assertions');
 
 
 contract("Dex", accounts => {
+    //The user must have ETH deposited such that deposited eth >= BUY order value
+    it("should throw an error if ETH balance is too low when creating a BUY limit order", async () => {
+        let dex = await Dex.deployed();
+        let link = await Link.deployed();
+        await truffleAssert.reverts(
+            dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 10, 1)
+        )
+        dex.depositEth({value: 10})
+        await truffleAssert.passes(
+            dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 10, 1)
+        )
+             
+    })
+
+    //The user must have enough tokens deposited such that balance >= SELL order amount 
+    it("should throw an error if token balance is too low when creating a SELL limit order", async () => {
+        let dex = await Dex.deployed();
+        let link = await Link.deployed();
+        await truffleAssert.reverts(
+            dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 10, 1)
+        );
+        await link.approve(dex.address, 500);
+        await dex.addToken(web3.utils.fromUtf8("LINK"), link.address, {from: accounts[0]});
+        await dex.deposit(10, web3.utils.fromUtf8("LINK"));
+        await truffleAssert.passes(
+            dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 10, 1)
+        )
+
+    })
+
+
+
     it("should only be possible for the owner to add tokens", async () =>{
         let dex = await Dex.deployed();
         let link = await Link.deployed();
@@ -36,5 +68,26 @@ contract("Dex", accounts => {
         let dex = await Dex.deployed();
         let link = await Link.deployed();
         await truffleAssert.passes(dex.withdraw(100, web3.utils.fromUtf8("LINK")))
+    })
+
+    
+
+    
+    
+    //The BUY order book should be ordered on price from highest to lowest starting at index 0
+    it("The BUY order book should be ordered on price from highest to lowest starting at index 0", async () => {
+        let dex = await Dex.deployed();
+        let link = await Link.deployed();
+        await link.approve(dex.address, 500);
+        await dex.depositEth({value: 3000});
+        await dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 1, 300);
+        await dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 1, 100);
+        await dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 1, 200);
+
+        let orderbook = await dex.getOrderBook(web3.utils.fromUtf8("LINK"), 0);
+        console.log(orderbook);
+        for (let i = 0; i < orderbook.lenght - 1; i++) {
+            assert(orderbook[i].price >= orderbook[i+1].price, "not right order in buy book")
+        }
     })
 })
