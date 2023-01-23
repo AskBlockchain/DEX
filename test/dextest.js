@@ -35,6 +35,23 @@ contract("Dex", accounts => {
     })
 
 
+     //The BUY order book should be ordered on price from highest to lowest starting at index 0
+     it("The BUY order book should be ordered on price from highest to lowest starting at index 0", async () => {
+        let dex = await Dex.deployed();
+        let link = await Link.deployed();
+        await link.approve(dex.address, 500);
+        await dex.depositEth({value: 3000});
+        await dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 1, 300);
+        await dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 1, 100);
+        await dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 1, 200);
+
+        let orderbook = await dex.getOrderBook(web3.utils.fromUtf8("LINK"), 0);
+        console.log(orderbook);
+        for (let i = 0; i < orderbook.lenght - 1; i++) {
+            assert(orderbook[i].price >= orderbook[i+1].price, "not right order in buy book")
+        }
+    })
+
 
     it("should only be possible for the owner to add tokens", async () =>{
         let dex = await Dex.deployed();
@@ -69,25 +86,7 @@ contract("Dex", accounts => {
         let link = await Link.deployed();
         await truffleAssert.passes(dex.withdraw(100, web3.utils.fromUtf8("LINK")))
     })
-
+   
     
-
-    
-    
-    //The BUY order book should be ordered on price from highest to lowest starting at index 0
-    it("The BUY order book should be ordered on price from highest to lowest starting at index 0", async () => {
-        let dex = await Dex.deployed();
-        let link = await Link.deployed();
-        await link.approve(dex.address, 500);
-        await dex.depositEth({value: 3000});
-        await dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 1, 300);
-        await dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 1, 100);
-        await dex.createLimitOrder(0, web3.utils.fromUtf8("LINK"), 1, 200);
-
-        let orderbook = await dex.getOrderBook(web3.utils.fromUtf8("LINK"), 0);
-        console.log(orderbook);
-        for (let i = 0; i < orderbook.lenght - 1; i++) {
-            assert(orderbook[i].price >= orderbook[i+1].price, "not right order in buy book")
-        }
-    })
+   
 })
