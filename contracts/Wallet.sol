@@ -42,6 +42,10 @@ contract Wallet is Ownable{
         balances[msg.sender][ticker] = balances[msg.sender][ticker].add(amount);        
     }
 
+    function depositEth() payable external {
+        balances[msg.sender][bytes32("ETH")] = balances[msg.sender][bytes32("ETH")].add(msg.value);
+    }
+
      function withdraw(uint amount, bytes32 ticker) external {
         
         require(balances[msg.sender][ticker] >= amount, "Insufficient Balance");
