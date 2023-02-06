@@ -11,7 +11,7 @@ contract('Dex', async (accounts) => {
         let balance = await dex.balances(accounts[0], web3.utils.fromUtf8("LINK"))
         assert.equal(balance.toNumber(), 0, "Initial LINK balance is not 0")
         await truffleAssert.reverts(
-            dex.createMarketOrder(1, web3.utils.fromUtf8("LINK", 10))
+            dex.createMarketOrder(1, web3.utils.fromUtf8("LINK"), 10)
         )
     })
   
@@ -20,7 +20,7 @@ contract('Dex', async (accounts) => {
         let dex = await Dex.deployed()
         let link = await Link.deployed()
         await truffleAssert.reverts(
-            dex.createMarketOrder(0, web3.utils.fromUtf8("LINK", 10))
+            dex.createMarketOrder(0, web3.utils.fromUtf8("LINK"), 10)
         )
         await dex.depositEth({value: 10})
         await truffleAssert.passes(
@@ -40,6 +40,15 @@ contract('Dex', async (accounts) => {
         await truffleAssert.passes(
             dex.createMarketOrder(0, web3.utils.fromUtf8("LINK"), 10)
         )
+    })
+
+    //Market orders should be filled until the order book is empty or the market order is 100% filled 
+    it("Market orders should not fill more limit orders than the market order amount", async () => {
+        let dex = await Dex.deployed()
+        let link = await Link.deployed()
+
+        let orderbook = await dex.getOrderBook(web3.utils.fromUtf8,("LINk"), 1)
+
     })
 
 
