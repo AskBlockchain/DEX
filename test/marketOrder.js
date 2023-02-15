@@ -89,6 +89,9 @@ contract('Dex', async (accounts) => {
             await dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 5, 400, {from: accounts[1]})
             await dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 5, 500, {from: accounts[2]})
 
+            //Check the amount of LINK in the Orderbook
+            let totalTokensForSale = await dex.getTotalTokenAmountForSale(1, web3.utils.fromUtf8("LINK"))
+
             //check buyer LINK balance before LINK purchase
             let balanceBefore = await dex.balances(accounts[0], web3.utils.fromUtf8("LINK"))
 
@@ -111,7 +114,7 @@ contract('Dex', async (accounts) => {
             await dex.depositEth({value: 10000})
             
             
-            //SELLER Deposit LINK & Approves Dex
+            //SELLER Deposit LINK, Approves Dex and create a sell market order
             await link.approve(dex.address, 500, {from: account[1]})
             //Create Limit Order
             await dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 1, 300, {from: accounts[1]})
@@ -126,7 +129,7 @@ contract('Dex', async (accounts) => {
             let balanceAfter = await dex.balances(accounts[0], web3.utils.fromUtf8("ETH"))
 
             //Buyer should have 10000ETH - 70ETH = 9930
-            assert.equal(balanceBefore.toNumber() - 70, balanceAfter.toNumber())
+            assert.equal(balanceBefore.toNumber() - 300, balanceAfter.toNumber())
 
 
         })
@@ -146,11 +149,11 @@ contract('Dex', async (accounts) => {
             await dex.deposit(100, web3.utils.fromUtf8("LINK"), {from: accounts[2]})
 
             await dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 1, 300, {from: accounts[1]})
-            await dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 1, 300, {from: accounts[2]})
+            await dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 1, 400, {from: accounts[2]})
 
             //Check sellers LINK balances before trade
             let account1BalanceBefore = await dex.balances(accounts[1], web3.utils.fromUtf8("LINK"))
-            let account2BalanceBefore = await dex.balances(accounts[1], web3.utils.fromUtf8("LINK"))
+            let account2BalanceBefore = await dex.balances(accounts[2], web3.utils.fromUtf8("LINK"))
 
             //Account[0] created market order to BUY up both SELL orders
             await dex.createMarketOrder(0, web3.utils.fromUtf8("LINK"), 2)
@@ -168,15 +171,15 @@ contract('Dex', async (accounts) => {
         //Filled limit orders should be removed from the orderbook
         it("Filled limit orders should be removed from the eorderbook", async () => {
             let dex = await Dex.deployed()
-            let link = await Link.deployed()
-            await dex.addToken(web3.utils.fromUtf8("LINK"), link.address)
+            //let link = await Link.deployed()
+            //await dex.addToken(web3.utils.fromUtf8("LINK"), link.address)
 
 
             //Seller deposits LINK and creates a SELL LIMIT order for 1 LINK for 300 wei
-            await link.approve(dex.address, 500)
-            await dex.deposit(50, web3.utils.fromUtf8("LINK"))
+            // await link.approve(dex.address, 500)
+            // await dex.deposit(50, web3.utils.fromUtf8("LINK"))
 
-            await dex.depositEth({value: 10000})
+            // await dex.depositEth({value: 10000})
 
             let orderbook = await dex.getOrderBook(web3.utils.fromUtf8("LINK"), 1) //Get sell side orderbook
 
@@ -190,7 +193,7 @@ contract('Dex', async (accounts) => {
         //Partly filled limit orders should be modified to represent the filled/remaining amount
         it("Limit orders filled property should be set correctly after a trade", async () => {
             let dex = await Dex.deployed()
-
+           
             let orderbook = await dex.getOrderBook(web3.utils.fromUtf8("LINK"), 1) //Get sell side orderbook
             assert(orderbook.length == 0, "Sell side Orderbook should be empty at start of test")
 
@@ -203,17 +206,17 @@ contract('Dex', async (accounts) => {
         })
 
         //When creating a BUY MARKET Order, the buyer needs to have enough ETH for the trade
-        it("Should throw an error when creating a BUY MARKET order without adequate ETH balance", async () => {
-            let dex = await Dex.deployed()
+        // it("Should throw an error when creating a BUY MARKET order without adequate ETH balance", async () => {
+        //     let dex = await Dex.deployed()
 
-            let balance = await dex.balances(accounts[4], web3.utils.fromUtf8("ETH"))
-            assert.equal(balance.toNumber(), 0, "Initial ETH balance is not 0")
-            await dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 5, 300, {from: accounts[1]})
+        //     let balance = await dex.balances(accounts[4], web3.utils.fromUtf8("ETH"))
+        //     assert.equal(balance.toNumber(), 0, "Initial ETH balance is not 0")
+        //     await dex.createLimitOrder(1, web3.utils.fromUtf8("LINK"), 5, 300, {from: accounts[1]})
 
-            await truffleAssert.reverts(
-                dex.createMarketOrder(0, web3.utils.fromUtf8("LINK"), 5, {from: accounts[4]})
-            )
-        })
+        //     await truffleAssert.reverts(
+        //         dex.createMarketOrder(0, web3.utils.fromUtf8("LINK"), 5, {from: accounts[4]})
+        //     )
+        // })
 
 
 

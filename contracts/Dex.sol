@@ -19,17 +19,33 @@ contract Dex is Wallet{
         bytes32 ticker;
         uint amount;
         uint price;
-        //uint filled;
+        uint filled;
     }
 
     uint public nextOrderId = 0;
     
     mapping(bytes32 => mapping(uint => Order[])) public orderBook;
-
+    
 
     function getOrderBook(bytes32 ticker, Side side) public view returns(Order[] memory){
         return orderBook[ticker][uint(side)];
     }
+
+
+    function getTotalTokenAmountForSale(bytes32 ticker) view external returns (uint) {
+    uint totalAmount = 0;
+    // Get the array of Order structs for the specified ticker and the side "for sale"
+    Order[] memory orders = orderBook[ticker][uint(Side.Sell)];
+    // Iterate over the array and add up the amounts of each Order struct
+    for (uint i = 0; i < orders.length; i++) {
+        totalAmount += orders[i].amount;
+    }
+    // Return the total amount
+    return totalAmount;
+    }
+
+
+    
 
     function createLimitOrder(Side side, bytes32 ticker, uint amount, uint price) public {
              if(side == Side.Buy){
@@ -88,8 +104,51 @@ contract Dex is Wallet{
         }
 
         function createMarketOrder(Side side, bytes32 ticker, uint amount) public {
-            
+            if(side == Side.Sell){
+                require(balances[msg.sender][ticker] >= amount, "Insuffient balance");
+            }
+            uint orderBookSide;
+            if(side == Side.Buy){
+                orderBookSide = 1;
+                } 
+                else{orderBookSide = 0;
+                }
+
+                Order[] storage orders = orderBook[ticker][orderBookSide];
+
+                uint totalFilled; //How much has been Filled veriable 
+
+                for(uint256 i = 0; i < orders.length && totalFilled < amount; i++) {
+                    //How much we can fill from order[i]
+                    uint leftToFill = amount.sub(totalFilled); //Market Orders that hasn't been filled
+                    uint availableToFill = orders[i].amount.sub(orders[i].filled); //Sell Orders that hasn't been filled
+                    uint filled = 0; //The excess BUY or SELL orders
+                    if(availableToFill > leftToFill){
+                        filled = leftToFill; //Excess Market BUY orders
+                    }
+                    else{ //availableToFill <= leftToFill
+                        filled = availableToFill; //Excess/Existing SELL orders
+                    }
+
+                    //After each loop we update the totalFilled veriable
+                    totalFilled = totalFilled.add(filled);
+
+                    
+                    
+                    
+                    //Execute the trade & shift balances between buyer/seller
+                    //Verify that the buyer has enough ETH to cover the purchase (require)
+                }
+
+                //Loop through the orderbook and remove 100% filled orders
         }
+    
+    
+
+
+
+
+
     
 }
 
