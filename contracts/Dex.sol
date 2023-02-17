@@ -48,23 +48,24 @@ contract Dex is Wallet{
     
 
     function createLimitOrder(Side side, bytes32 ticker, uint amount, uint price) public {
-             if(side == Side.Buy){
+                if(side == Side.Buy){
                  require(balances[msg.sender]["ETH"] >= amount.mul(price));
                 }
 
                 else if(side == Side.Sell){
                 require(balances[msg.sender][ticker] >= amount);
-            }
+                }
 
             Order[] storage orders = orderBook[ticker][uint(side)];
-            orders.push(Order(nextOrderId, msg.sender, side, ticker, amount, price));
+            orders.push(Order(nextOrderId, msg.sender, side, ticker, amount, price, 0));
 
             //Bubble Sort
             uint i; //i set and equal to 0
             uint orderlist = orders.length; //number of orders in the order[] array
             if(orderlist > 0 ){
                 i = orderlist - 1;
-                }   else {
+                }   
+                else {
                 i = 0;
                 }
 
@@ -107,41 +108,97 @@ contract Dex is Wallet{
             if(side == Side.Sell){
                 require(balances[msg.sender][ticker] >= amount, "Insuffient balance");
             }
-            uint orderBookSide;
+
+            uint orderBookSide; //Keep track of the Buy or Sell Side we need
+            //When creating a Market Order, we need to get the opposite trades Eg. if the Order is Buy then we get all the Sell orders
             if(side == Side.Buy){
                 orderBookSide = 1;
                 } 
                 else{orderBookSide = 0;
                 }
 
-                Order[] storage orders = orderBook[ticker][orderBookSide];
+                Order[] storage orders = orderBook[ticker][orderBookSide]; //Creating a local Array to store type of token and Side 
 
-                uint totalFilled; //How much has been Filled veriable 
+                uint totalFilled = 0; //Track how much Market Orders has been Filled veriable 
 
+                //We loop through all orders in the "orders Array" until the end OR "totalFilled" has been filled
+                //The Loop continues as log as both conditions a True. The Loop exits when we reach the end of the list OR we fill all the orders
                 for(uint256 i = 0; i < orders.length && totalFilled < amount; i++) {
-                    //How much we can fill from order[i]
-                    uint leftToFill = amount.sub(totalFilled); //Market Orders that hasn't been filled
-                    uint availableToFill = orders[i].amount.sub(orders[i].filled); //Sell Orders that hasn't been filled
+                    
+                    uint leftToFill = amount.sub(totalFilled); //Market Orders that hasn't been filled with each loop (to be filled)
+                    uint availableToFill = orders[i].amount.sub(orders[i].filled); //Sell Orders that hasn't been filled (available)
                     uint filled = 0; //The excess BUY or SELL orders
                     if(availableToFill > leftToFill){
-                        filled = leftToFill; //Excess Market BUY orders
+                        filled = leftToFill; //If available orders are greater, it means all orders (Buy or Sell) HAVE BEEN filled                   
                     }
-                    else{ //availableToFill <= leftToFill
-                        filled = availableToFill; //Excess/Existing SELL orders
+                    
+                    else{ //Alternativly we HAVE NOT filled all our orders becuase there is no available orders
+                        filled = availableToFill; 
                     }
+                
 
-                    //After each loop we update the totalFilled veriable
                     totalFilled = totalFilled.add(filled);
+                    //This line updates the "totalFilled" variable to include the amount filled for the current order 
+                    //(represented by the "filled" variable). 
+                    //The ".add()" function is used to add the value of "filled" to the current value of "totalFilled".
 
+                    orders[i].filled = orders[i].filled.add(filled); //Current filled = Current filled + (filled on this iteration)
+                    //This line updates the "filled" variable of the current order in the iteration 
+                    //(represented by "orders[i]") to include the amount filled for the current order 
+                    //(represented by the "filled" variable).
                     
-                    
-                    
+                    uint cost = filled.mul(orders[i].price);
+                    //This line calculates the cost of the filled amount for the current order, by multiplying the amount filled 
+                    //(represented by the "filled" variable) by the price of the order (represented by the "price" variable of the current order).
+
+
                     //Execute the trade & shift balances between buyer/seller
+                    if(side == Side.Buy){
                     //Verify that the buyer has enough ETH to cover the purchase (require)
+                    require(balances[msg.sender]["ETH"] >= cost);
+                        //msg.sender is Buyer
+                        //Transfer ETH from Buyer to Seller
+                        balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"].sub(cost); //Current value = Current value - (cost)
+                        //Transfer Tokens from Seller to Buyer
+                        balances[msg.sender][ticker] = balances[msg.sender][ticker].add(filled); //Current "ticker" balance = Current balance + (filled)
+
+                        //Add ETH from Buyer(msg.sender) to (Order.trader) 
+                        balances[orders[i].trader]["ETH"] = balances[orders[i].trader]["ETH"].add(cost);
+                        //Subtract Tokens(filled) from (Order.trader)
+                        balances[orders[i].trader][ticker] = balances[orders[i].trader][ticker].sub(filled);
+                    }
+                        
+
+                    else if(side == Side.Sell){
+                        //msg.sender is Seller
+                        //Transfer ETH from Buyer to Seller
+                        balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"].add(cost); //Current value = Current value - (cost)
+                        //Transfer Tokens from Seller to Buyer
+                        balances[msg.sender][ticker] = balances[msg.sender][ticker].sub(filled); //Current "ticker" balance = Current balance + (filled)
+
+                        //Add ETH from Buyer(msg.sender) to (Order.trader) 
+                        balances[orders[i].trader]["ETH"] = balances[orders[i].trader]["ETH"].sub(cost);
+                        //Subtract Tokens(filled) from (Order.trader)
+                        balances[orders[i].trader][ticker] = balances[orders[i].trader][ticker].add(filled);
+                       
+                    }
+                    
                 }
 
                 //Loop through the orderbook and remove 100% filled orders
+                while(orders.length > 0 && orders[0].filled == orders[0].amount){
+                //Remove the top element in the orders array by overwriting evey element
+                //with the nextelement in the order list
+                    for(uint i = 0; i < orders.length - 1; i++){
+                    orders[i] = orders[i + 1];
+                    }
+                    orders.pop();
+                }                 
+                    
+                    
         }
+}                
+        
     
     
 
@@ -150,5 +207,5 @@ contract Dex is Wallet{
 
 
     
-}
+
 
